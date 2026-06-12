@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>個人資料保護與著作合理使用互動測驗 (防作弊隨機版)</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --success: #10b981;
+            --error: #ef4444;
+            --bg-gradient: linear-gradient(135deg, #0f172a, #1e1b4b);
+            --card-bg: #ffffff;
+            --text-dark: #1e293b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Helvetica Neue", Arial, "Noto Sans TC", sans-serif; }
+        body { background: var(--bg-gradient); color: #fff; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .container { width: 100%; max-width: 800px; background: var(--card-bg); color: var(--text-dark); border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); padding: 30px; display: none; }
+        .container.active { display: block; }
+        h1, h2, h3 { color: var(--primary); margin-bottom: 20px; text-align: center; }
+        p { margin-bottom: 15px; line-height: 1.6; }
+        .img-container { width: 100%; display: flex; justify-content: center; margin-bottom: 20px; }
+        .chapter-img { width: 600px; height: 400px; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 100%; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: var(--text-dark); }
+        input[type="text"], input[type="url"] { width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 16px; transition: 0.3s; }
+        input:focus { border-color: var(--primary-light); outline: none; }
+        .btn { display: block; width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 20px; text-align: center; }
+        .btn:hover { background: var(--primary-light); }
+        .options-container { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+        .option-btn { padding: 14px; border: 2px solid #e2e8f0; border-radius: 8px; background: #f8fafc; font-size: 16px; text-align: left; cursor: pointer; transition: 0.2s; }
+        .option-btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .option-btn.correct { background: #d1fae5; border-color: var(--success); color: #065f46; font-weight: bold; }
+        .option-btn.wrong { background: #fee2e2; border-color: var(--error); color: #991b1b; font-weight: bold; }
+        .explanation-box { background: #f0fdf4; border-left: 4px solid var(--success); padding: 15px; border-radius: 4px; margin-top: 20px; display: none; }
+        .explanation-box.visible { display: block; }
+        .progress-bar { width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; margin-bottom: 20px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary-light); width: 0%; transition: 0.3s; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
+        .dash-card { background: #f1f5f9; padding: 15px; border-radius: 8px; text-align: center; border-top: 4px solid var(--primary); }
+    </style>
+</head>
+<body>
+
+    <!-- 1. 學生登入註冊頁面 -->
+    <div id="step-login" class="container active">
+        <h1>數位法治素養測驗</h1>
+        <h3>個人資料保護與著作合理使用</h3>
+        <p style="text-align: center; color: #64748b;">請填寫以下資訊以開始進行 20 題隨機排列選擇題測驗</p>
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e2e8f0;">
+        <div class="form-group">
+            <label for="student-name">學生姓名：</label>
+            <input type="text" id="student-name" placeholder="請輸入您的真實姓名" required>
+        </div>
+        <div class="form-group">
+            <label for="student-url">本章作業分享網址 (URL)：</label>
+            <input type="url" id="student-url" placeholder="https://example.com/your-work" required>
+        </div>
+        <button class="btn" onclick="startQuiz()">開始線上測驗</button>
+    </div>
+
+    <!-- 2. 章節引導轉場頁面 -->
+    <div id="step-transition" class="container">
+        <h2 id="trans-title">章節提示</h2>
+        <div class="img-container">
+            <img id="trans-img" src="" alt="章節圖示" class="chapter-img">
+        </div>
+        <p id="trans-desc" style="text-align: center; font-size: 18px; margin-bottom: 20px;"></p>
+        <button class="btn" onclick="enterChapterQuestions()">進入該單元題目</button>
+    </div>
+
+    <!-- 3. 核心測驗題目頁面 -->
+    <div id="step-quiz" class="container">
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+        <p id="quiz-chapter" style="font-weight: bold; color: var(--primary-light);"></p>
+        <h3 id="quiz-question" style="text-align: left; margin-top: 10px;">題目加載中...</h3>
+        <div id="quiz-options" class="options-container"></div>
+        <div id="explanation-box" class="explanation-box">
+            <p><strong>💡 核心觀念解析：</strong></p>
+            <p id="explanation-text"></p>
+            <p id="source-text" style="color: #64748b; font-size: 14px; margin-top: 5px;"></p>
+        </div>
+        <button id="next-btn" class="btn" style="display: none;" onclick="processNextFlow()">下一題</button>
+    </div>
+
+    <!-- 4. 結算與成績登記儀表板 -->
+    <div id="step-result" class="container">
+        <h1>🎉 測驗完成！</h1>
+        <h2 id="result-score" style="font-size: 32px; margin: 20px 0;">總得分：0 / 20 題</h2>
+        <div class="dashboard">
+            <div class="dash-card"><h4>Ch3-1 個資保護</h4><p id="score-ch1" style="font-size: 20px; font-weight:bold; color:var(--primary);">0/6</p></div>
+            <div class="dash-card"><h4>Ch3-2 智慧財產</h4><p id="score-ch2" style="font-size: 20px; font-weight:bold; color:var(--primary);">0/7</p></div>
+            <div class="dash-card"><h4>Ch3-3 合理使用</h4><p id="score-ch3" style="font-size: 20px; font-weight:bold; color:var(--primary);">0/7</p></div>
+        </div>
+        <div style="margin-top: 30px; background: #f8fafc; padding: 15px; border-radius: 8px; font-size: 14px;">
+            <p><strong>學生姓名：</strong> <span id="res-name"></span></p>
+            <p><strong>作業網址：</strong> <span id="res-url" style="word-break: break-all;"></span></p>
+            <p><strong>驗證防偽碼：</strong> <span id="res-code" style="font-family: monospace; color:#64748b;"></span></p>
+        </div>
+        <button class="btn" id="submit-btn" onclick="submitToTeacher()">💾 儲存並上傳成績給老師</button>
+    </div>
+
+    <script>
+        // ==========================================
+        // 【老師專用設定區】
+        // ==========================================
+        const TEACHER_GOOGLE_SHEETS_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
+
+        const chapterAssets = {
+            1: { title: "第一篇章：個人資料保護", desc: "本單元將測試《個人資料保護法》之核心概念、當事人權利與網路防護常識。", img: "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=600&h=400&fit=crop" },
+            2: { title: "第二篇章：智慧財產權", desc: "本單元將測試著作權、專利權、商標權之定義，以及網路創用 CC 授權標誌。", img: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&h=400&fit=crop" },
+            3: { title: "第三篇章：著作合理使用", desc: "本單元將測試在教學、評論等正當目的下，如何符合法定基準合理利用他人著作。", img: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&h=400&fit=crop" }
+        };
+
+        // 原始靜態題庫數據
+        const rawQuestions = [
+            // Ch3-1 (1-6)
+            { ch: 1, q: "下列哪一項資料在未經適當脫敏或去識別化前，不屬於《個人資料保護法》所定義的個人資料？", o: ["你的真實姓名、出生年月日", "家裡的聯絡電話與居住地址", "走在路上隨手拍下的台北 101 大樓風景照", "你的國民身分證統一編號"], a: 2, exp: "台北 101 大樓的風景照無法直接或間接識別出特定的個人，因此不屬於個人資料。其餘選項皆可識別出特定個人。", src: "「ch3-1 個人資料保護」簡報，第 4 頁。" },
+            { ch: 1, q: "根據我國《個人資料保護法》，以下哪一項是個人資料當事人無法對保有其資料的單位主張的權利？", o: ["請求查詢、閱覽或製給複製本", "要求任意修改成假資料以隱瞞真實身分", "請求補充或更正（若資料有錯誤或不完整）", "請求停止蒐集、處理、利用或請求刪除"], a: 1, exp: "當事人可以要求更正錯誤的資料，但不能無理要求將正確資料修改為虛假、捏造的資訊。", src: "「ch3-1 個人資料保護」簡報，第 7 頁。" },
+            { ch: 1, q: "政府或企業在蒐集民眾的個人資料時，必須遵守《個資法》的規定。下列哪一項敘述「不」符合法律規範的基本原則？", o: ["必須有明確、特定的蒐集目的", "可以隨意將資料轉賣給其他需要的補習班 or 廣告商", "蒐集時應尊重當事人的權益，不得逾越特定目的之必要範圍", "應與蒐集之目的具有正當合理的關聯"], a: 1, exp: "非經法律允許或當事人同意，擅自將個資販售或提供給第三方使用，屬於違法利用個資的行為。", src: "「ch3-1 個人資料保護」簡報，第 8 頁。" },
+            { ch: 1, q: "為了避免自己的個人資料在網路世界中外洩，下列哪一種做法是「不安全」且應該避免的？", o: ["為了方便記憶，所有網站的密碼都設為自己的生日或手機號碼", "不要隨意在公共、不信任的網頁上輸入身分證字號與信用卡卡號", "定期更換重要帳號的密碼，並開啟雙重認證（2FA）", "仔細閱讀網站的隱私權政策，了解他們如何處理你的資料"], a: 0, exp: "使用生日、手機號碼等容易被猜測的個人資料作為密碼，會大幅增加帳號被盜用的風險。", src: "「ch3-1 個人資料保護」簡報，第 11 頁。" },
+            { ch: 1, q: "如果你在網路上遇到可疑的求職廣告，對方要求你必須先拍照上傳「身分證正反面」及「銀行存摺封面」才能面試。此時你應該怎麼做比較安全？", o: ["馬上拍照傳過去，因為找工作賺錢比較重要", "雖然覺得奇怪，但還是先傳身分證，存摺以後再說", "提高警覺，向家長或老師諮詢，或撥打 165 反詐騙專線查證，切勿輕易提供", "相信對方的說法，因為大公司的經理應該不會騙人"], a: 2, exp: "這是常見的詐騙與個資竊取手法，極可能導致身分被冒用或帳戶變成洗錢人頭戶，必須謹慎查證。", src: "「ch3-1 個人資料保護」簡報，第 12 頁。" },
+            { ch: 1, q: "如果某家網路商城因為資安防護不當，導致大量會員的住址、電話外洩，造成會員遭受詐騙損失。依據《個資法》，該商城可能會面臨什麼法律後果？", o: ["完全不需要負責，因為那是駭客的錯", "只需要口頭道歉，不需要承擔任何法律責任", "可能必須對受害會員承擔損害賠償責任，情節嚴重者甚至有刑事或行政處罰", "政府會直接將該公司沒收"], a: 2, exp: "非公務機關若未盡到個資安全維護義務導致個資外洩，需依法承擔損害賠償等相關法律責任。", src: "「ch3-1 個人資料保護」簡報，第 14 頁。" },
+            // Ch3-2 (7-13)
+            { ch: 2, q: "智慧財產權是為了保護人類精神創作結晶而設立的權利。下列哪一項「不屬於」智慧財產權的三大核心權利？", o: ["著作權", "專利權", "隱私權", "商標權"], a: 2, exp: "智慧財產權主要包括著作權、專利權與商標權。隱私權屬於基本人權與人格權的範疇，不屬於智慧財產權。", src: "「ch3-2 智慧財產權」簡報，第 3 頁。" },
+            { ch: 2, q: "關於「著作權」的取得時機，我國法律採取的是什麼制度？", o: ["登記發明制（必須向政府登記才算數）", "創作完成主義（作品創作完成的當下即自動取得）", "審查公告制（必須經過專家評審並公告半年）", "繳費啟用制（必須定期繳交權利金給國家）"], a: 1, exp: "我國著作權法採用「創作完成主義」，不論作品有沒有發表、登記，在創作完成的那一刻起就受到著作權法的保護。", src: "「ch3-2 智慧財產權」簡報，第 5 頁。" },
+            { ch: 2, q: "某知名連鎖速食店特有的「金色雙拱門（M）」圖樣，用來讓消費者辨識這家店的品牌與服務。請問這個圖樣受到什麼權利的保護？", o: ["商標權", "專利權", "祕密權", "著作人格權"], a: 0, exp: "用來表彰商品或服務來源的標誌、文字、圖形，屬於「商標權\"」保護的範圍，必須依法向經濟部智慧財產局申請註冊。", src: "「ch3-2 智慧財產權」簡報，第 7 頁。" },
+            { ch: 2, q: "小明發明了一種新型的智慧自動折衣機，具有高度的實用性與技術創新。如果他想要在市場上獨佔這個技術、防止別人抄襲，他應該去申請什麼權利？", o: ["著作權", "專利權", "肖像權", "商標權"], a: 1, exp: "對於技術、物品結構、發明 or 新式樣的創新，必須透過向政府申請並通過審查後，才能取得「專利權」的保護。", src: "「ch3-2 智慧財產權」簡報，第 9 頁。" },
+            { ch: 2, q: "在網路上下載圖片或音樂時，經常會看到「創用 CC（Creative Commons）」的授權標誌。請問創用 CC 的主要目的是什麼？", o: ["禁止所有人使用這件作品", "讓創作者可以在一定條件下，主動授權公眾分享與利用作品", "幫作品賣一個好價錢", "用來代表這件作品完全沒有著作權"], a: 1, exp: "創用 CC 是一種彈性的授權機制，創作者可以透過標示不同的條件（如姓名標示、非商業性等），讓大眾在符合條件下自由利用作品。", src: "「ch3-2 智慧財產權」簡報，第 11 頁。" },
+            { ch: 2, q: "在創用 CC 的四個核心標誌中，如果看到一個「禁止變更（No Derivatives, =）」的圖樣，代表使用者在使用這件作品時必須遵守什麼規定？", o: ["不能拿這件作品去賺錢", "必須寫出原作者的名字", "必須保持作品的原貌，不可以對作品進行改作、剪輯或重混", "只能在非網路環境下使用"], a: 2, exp: "「禁止變更」標誌（等號 =）代表使用者必須依照作品原狀利用，不得改變、改作或剪輯原本的作品。", src: "「ch3-2 智慧財產權」簡報，第 13 頁。" },
+            { ch: 2, q: "小華想在自己的個人部落格上放一首流行歌曲當背景音樂，下列哪一種做法是正確且合法的？", o: ["反正是個人部落格沒有營利，直接從非法音樂網站下載來放沒關係", "只要在文章末尾註明「音樂取自網路，侵權刪除」就可以隨意使用", "尋找具有創用 CC 授權且允許合理使用的音樂，或向音樂著作權集體管理組織取得合法授權", "只要把音樂的速度調快一點，就不算侵犯著作權了"], a: 2, exp: "使用他人著作必須取得合法授權，或使用創作者以創用 CC 等方式公開授權的資源。註明「侵權刪除」或單純宣稱非營利並不等同於合法授權。", src: "「ch3-2 智慧財產權」簡報，第 15 頁。" },
+            // Ch3-3 (14-20)
+            { ch: 3, q: "依據《著作權法》，在特定情況下，我們可以不經著作權人同意，在合理範圍內使用其作品。這套制度稱稱為 什麼？", o: ["著作合理使用", "強制沒收使用", "秘密授權使用", "網路自由分享"], a: 0, exp: "為調和社會公共利益與著作權人權益，法律允許在符合特定條件的合理範圍內（如教育、評論、報導等），可不經同意合理使用他人著作。", src: "「ch3-3 著作合理使用」簡報，第 3 頁。" },
+            { ch: 3, q: "法官或相關機關在判定某個使用行為是否屬於「合理使用」時，下列哪一個「不是」法定的主要判斷基準？", o: ["利用之目的及性質（例如是否為非營利教育目的）", "著作之性質", "所利用之質量及其在整個著作所占之比例", "創作者有沒有生氣或提出抗議"], a: 3, exp: "法律上判斷合理使用有四大基準（目的性質、著作性質、質量比例、對市場價值的影響），並非以創作者主觀的心情或抗議為法定判斷標準。", src: "「ch3-3 著作合理使用」簡報，第 5 頁。" },
+            { ch: 3, q: "國中生小明為了完成學校資訊課的「台灣生態介紹」簡報作業，從小百科網站上引用了一張台灣黑熊的照片，並在簡報中清楚註明了圖片來源。請問這樣的行為是否屬於合理使用？", o: ["屬於合理使用，因為是為了學校教學與個人學習的非營利目的，且比例適當", "屬於違法行為，因為只要沒付錢就是偷竊", "屬於合理使用，但前提是小明必須把這份簡報上傳到網路上賣錢", "屬於違法行為，因為學校作業不能使用網路上任何圖形"], a: 0, exp: "為學校授課或學生撰寫報告等教育目的，在合理範圍（引述一張照片）並明確註明出處的情況下，符合合理使用規範。", src: "「ch3-3 著作合理使用」簡報，第 7 頁。" },
+            { ch: 3, q: "阿豪是一位網路影評人，他在 YouTube 上製作了一支「5分鐘看懂某熱門電影」的評論影片。影片中剪輯了該電影大約 1 分鐘的精彩片段來輔助他的評論。請問這通常比較符合合理使用的哪一項指標？", o: ["屬商業性的大量複製", "屬於評論、報導性質的合理引述，且所占比例不高", "這完全不算合理使用，因為電影院會因此倒閉", "只要影片放上 YouTube 就不可能算合理使用"], a: 1, exp: "為了評論、介紹 or 報導之正當目的，在適當比例內引用他人著作，且未對原著作的市場造成實質替代，通常較有機會被認定為合理使用。", src: "「ch3-3 著作合理使用」簡報，第 9 頁。" },
+            { ch: 3, q: "小美買了一本正版的英文多益模擬試題，她覺得內容非常好，於是把「整本書」影印了 50 份，並在班上以每本 50 元的成本價賣給同學一起複習。請問小美的行為是否符合合理使用？", o: ["符合，原因為她是好心幫同學複習，而且沒有賺錢", "不符合，因為影印整本書（質量與比例過高）已嚴重影響了原書商與作者的市場銷售利益", "符合，因為大家都有買正版書的意願", "符合，只要她有在影印本封面寫上原作者名字就可以"], a: 1, exp: "影印整本書籍已經超過了「合理質量與比例」，且直接替代了原文書的市場需求，對著作權人的權益造成重大損害，不屬於合理使用。", src: "「ch3-3 著作合理使用」簡報，第 11 頁。" },
+            { ch: 3, q: "下列哪一種利用他人作品的行為，最「不可能」被認定為合理使用？", o: ["新聞記者在報導某畫展時，鏡頭拍到展場牆上的部分畫作", "老師在課堂上口頭引用某位作家的經典名言來激勵學生", "把最新上映的院線電影整部用手機錄下來，上傳到雲端硬碟分享給網友免費看", "為了撰寫學術論文，在文章中摘錄了幾句其他學者的研究結論並註明出處"], a: 2, exp: "將整部院線電影錄製並公開分享，屬於嚴重的侵權行為（重製權與公開傳輸權的侵害），絕對不屬於合理使用。", src: "「ch3-3 著作合理使用」簡報，第 13 頁。" },
+            { ch: 3, q: "當我們在網路上引用、利用符合合理使用原則的他人的文字或圖片時，最基本且必須做到的法律義務是什麼？", o: ["必須打電話給原作者說謝謝", "必須明確「明示出處」（註明作者、作品名稱與資料來源）", "必須把自己的帳號密碼留給對方", "必須在作品上貼上自己的大頭貼"], a: 1, exp: "依據著作權法規定，不論是合理使用或是依授權利用他人著作，都應明確「明示出處」，尊重創作者的著作人格權（姓名表示權）。", src: "「ch3-3 著作合理使用」簡報，第 15 頁。" }
+        ];
+
+        let questions = []; // 用於存放被打亂順序後的最終題庫
+        let currentIdx = -1; 
+        let studentName = "";
+        let homeworkUrl = "";
+        let answersData = []; 
+        let currentChapterMode = 0; 
+
+        // 陣列隨機打亂演算法 (Fisher-Yates Shuffle)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 將題目依照章節各自打亂，並且把每個題目的選項與答案索引同時打亂
+        function buildRandomizedQuiz() {
+            // 1. 分拆三個章節
+            let ch1List = rawQuestions.filter(q => q.ch === 1);
+            let ch2List = rawQuestions.filter(q => q.ch === 2);
+            let ch3List = rawQuestions.filter(q => q.ch === 3);
+
+            // 2. 個別章節內的題目隨機排序
+            shuffleArray(ch1List);
+            shuffleArray(ch2List);
+            shuffleArray(ch3List);
+
+            // 3. 重新組合回完整題庫 (依舊保持 Ch1 -> Ch2 -> Ch3 的教學進度)
+            let combined = [...ch1List, ...ch2List, ...ch3List];
+
+            // 4. 對每道題目的選項進行隨機排序，並重新對齊正確答案
+            questions = combined.map(item => {
+                // 深拷貝原始物件以避免改動原始數據
+                let newItem = JSON.parse(JSON.stringify(item));
+                let originalOptions = [...newItem.o];
+                let correctText = originalOptions[newItem.a]; // 找出正確答案的文字內容
+
+                // 打亂選項順序
+                shuffleArray(newItem.o);
+
+                // 重新尋找被打亂後的正確答案索引值
+                newItem.a = newItem.o.indexOf(correctText);
+                return newItem;
+            });
+        }
+
+        function switchView(id) {
+            document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function startQuiz() {
+            studentName = document.getElementById('student-name').value.trim();
+            homeworkUrl = document.getElementById('student-url').value.trim();
+            if(!studentName || !homeworkUrl) { alert("請填寫完整的姓名與作業網址！"); return; }
+            
+            // 觸發防作弊機制：生成完全隨機的考卷
+            buildRandomizedQuiz();
+            
+            currentIdx = 0;
+            showTransitionOrQuestion();
+        }
+
+        function showTransitionOrQuestion() {
+            let q = questions[currentIdx];
+            if(q.ch !== currentChapterMode) {
+                currentChapterMode = q.ch;
+                let asset = chapterAssets[currentChapterMode];
+                document.getElementById('trans-title').innerText = asset.title;
+                document.getElementById('trans-img').src = asset.img;
+                document.getElementById('trans-desc').innerText = asset.desc;
+                switchView('step-transition');
+            } else {
+                showQuestion();
+            }
+        }
+
+        function enterChapterQuestions() {
+            showQuestion();
+        }
+
+        function showQuestion() {
+            switchView('step-quiz');
+            let q = questions[currentIdx];
+            document.getElementById('progress-fill').style.width = `${(currentIdx/questions.length)*100}%`;
+            document.getElementById('quiz-chapter').innerText = `【單元單選題 ${currentIdx+1} / ${questions.length}】`;
+            document.getElementById('quiz-question').innerText = q.q;
+            
+            let optDiv = document.getElementById('quiz-options');
+            optDiv.innerHTML = "";
+            document.getElementById('explanation-box').classList.remove('visible');
+            document.getElementById('next-btn').style.display = "none";
+
+            // 渲染已經被打亂順序的全新選項
+            q.o.forEach((opt, idx) => {
+                let btn = document.createElement('button');
+                btn.className = "option-btn";
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(idx);
+                optDiv.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedIdx) {
+            let q = questions[currentIdx];
+            let options = document.getElementById('quiz-options').children;
+            
+            for(let i=0; i<options.length; i++) {
+                options[i].disabled = true;
+                if(i === q.a) options[i].classList.add('correct');
+                if(i === selectedIdx && selectedIdx !== q.a) options[i].classList.add('wrong');
+            }
+
+            answersData[currentIdx] = (selectedIdx === q.a);
+            document.getElementById('explanation-text').innerText = q.exp;
+            document.getElementById('source-text').innerText = `出處來源：${q.src}`;
+            document.getElementById('explanation-box').classList.add('visible');
+            document.getElementById('next-btn').style.display = "block";
+        }
+
+        function processNextFlow() {
+            currentIdx++;
+            if(currentIdx < questions.length) {
+                showTransitionOrQuestion();
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+            switchView('step-result');
+            let totalCorrect = answersData.filter(Boolean).length;
+            let ch1Total = questions.filter(q => q.ch === 1).length;
+            let ch2Total = questions.filter(q => q.ch === 2).length;
+            let ch3Total = questions.filter(q => q.ch === 3).length;
+
+            let ch1Correct = questions.filter((q, i) => q.ch === 1 && answersData[i]).length;
+            let ch2Correct = questions.filter((q, i) => q.ch === 2 && answersData[i]).length;
+            let ch3Correct = questions.filter((q, i) => q.ch === 3 && answersData[i]).length;
+
+            document.getElementById('result-score').innerText = `總答對：${totalCorrect} / ${questions.length} 題`;
+            document.getElementById('score-ch1').innerText = `${ch1Correct} / ${ch1Total}`;
+            document.getElementById('score-ch2').innerText = `${ch2Correct} / ${ch2Total}`;
+            document.getElementById('score-ch3').innerText = `${ch3Correct} / ${ch3Total}`;
+
+            document.getElementById('res-name').innerText = studentName;
+            document.getElementById('res-url').innerText = homeworkUrl;
+            
+            let securityCode = "SEC-" + Math.random().toString(36).substr(2, 9).toUpperCase() + "-" + totalCorrect;
+            document.getElementById('res-code').innerText = securityCode;
+        }
+
+        function submitToTeacher() {
+            let totalCorrect = answersData.filter(Boolean).length;
+            let ch1Correct = questions.filter((q, i) => q.ch === 1 && answersData[i]).length;
+            let ch2Correct = questions.filter((q, i) => q.ch === 2 && answersData[i]).length;
+            let ch3Correct = questions.filter((q, i) => q.ch === 3 && answersData[i]).length;
+            let code = document.getElementById('res-code').innerText;
+
+            let reportText = `=== 成績證明 ===\n姓名：${studentName}\n作業網址：${homeworkUrl}\n總分：${totalCorrect}/20\nCh3-1個資：${ch1Correct}\nCh3-2智財：${ch2Correct}\nCh3-3合理使用：${ch3Correct}\n驗證碼：${code}`;
+            
+            let blob = new Blob([reportText], {type: "text/plain;charset=utf-8"});
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `${studentName}_成績報告.txt`;
+            link.click();
+
+            if(TEACHER_GOOGLE_SHEETS_URL === "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE") {
+                alert("文字檔成績證明已自動下載！\n\n(提示：老師尚未配置 Google 試算表 Web App 網址，請同學手動把下載的 TXT 報告傳給老師辦理登記。)");
+                return;
+            }
+
+            let btn = document.getElementById('submit-btn');
+            btn.innerText = "資料上傳中...";
+            btn.disabled = true;
+
+            fetch(TEACHER_GOOGLE_SHEETS_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    "name": studentName,
+                    "homeworkUrl": homeworkUrl,
+                    "totalScore": totalCorrect,
+                    "scoreCh1": ch1Correct,
+                    "scoreCh2": ch2Correct,
+                    "scoreCh3": ch3Correct,
+                    "securityCode": code
+                })
+            }).then(() => {
+                alert("🎉 成績已全自動同步上傳至老師的 Google 試算表！網頁版備份檔案也已同步下載。");
+                btn.innerText = "✅ 已成功回報成績";
+            }).catch(err => {
+                alert("上傳失敗，請將下載的文字檔報告手動傳給老師。");
+                btn.disabled = false;
+                btn.innerText = "💾 儲存並上傳成績給老師";
+            });
+        }
+    </script>
+</body>
+</html>
